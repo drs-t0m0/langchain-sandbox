@@ -4,6 +4,8 @@ from constants import Constant
 
 from dotenv import load_dotenv
 from langchain_openai import AzureChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.prompts import ChatPromptTemplate
 
 load_dotenv()
 
@@ -12,18 +14,6 @@ def get_azure_chat_openai_info(model: str) -> Tuple[str, str]:
     constant = Constant()
     config = constant.get_azure_openai_config(model)
     return config["AZURE_OPENAI_DEPLOYMENT_NAME"], config["AZURE_OPENAI_API_VERSION"]
-
-
-def print_message(message: str, response):
-    print(f"question:")
-    print(message)
-    print()
-
-    print(f"answer:")
-    print(response['content'])
-    print()
-
-    print(f"total_tokens: {response['usage_metadata']['total_tokens']}")
 
 
 def main(message: str):
@@ -38,15 +28,23 @@ def main(message: str):
         max_retries=2,
     )
 
-    messages = [
-        ("system", Constant.get_azure_system_prompt_template()),
-        ("human", message),
-    ]
+    system_template = "Translate the following from English into {language}"
 
-    response = model.invoke(messages).model_dump()
-    print_message(message, response)
+    prompt_template = ChatPromptTemplate.from_messages(
+        [("system", system_template), ("user", "{text}")],
+    )
+
+    prompt = prompt_template.invoke({"language": "Japanese", "text": message})
+
+    # Runnable
+    response = model.invoke(prompt).model_dump_json()
+    print(response)
+
+    # Streaming
+    # for token in model.stream(messages):
+    #     print(token.content, end="|")
 
 
 if __name__ == "__main__":
-    message = "Hello, AI!"
+    message = "hi!"
     main(message)
